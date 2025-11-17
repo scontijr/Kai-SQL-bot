@@ -35,7 +35,7 @@ openai.api_key = st.secrets.OPENAI_API_KEY
 msgs = StreamlitChatMessageHistory(key="chat_messages")
 memory = ConversationBufferMemory(chat_memory=msgs)
 
-print (openai.api_key)
+
 # Model selection for the chatbot
 model_selection = st.sidebar.selectbox("Choose a model", ['gpt-3.5-turbo-16k', 'gpt-4'], help="Select the model you want to use for the chatbot.")
 llm = ChatOpenAI(model=model_selection, temperature=0, streaming=True) if model_selection != 'default' else OpenAI(temperature=0, streaming=True)
