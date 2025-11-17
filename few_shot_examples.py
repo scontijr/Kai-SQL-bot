@@ -1,36 +1,31 @@
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.schema import Document
-from langchain.agents.agent_toolkits import create_retriever_tool
+@@
+-from langchain.embeddings.openai import OpenAIEmbeddings
+-from langchain.vectorstores import FAISS
+-from langchain.schema import Document
++from langchain.embeddings.openai import OpenAIEmbeddings
++from langchain.vectorstores import FAISS
++from langchain.schema import Document
++import os
 
+-# existing few_shot_docs = [...] remains the same
 
-few_shots = {'List all customers.': 'SELECT * FROM "customer";',
- 'How many orders are there?': 'SELECT COUNT(*) FROM \"order\";',
- 'Help me write a query to find the number of orders placed by each customer.': 'SELECT customer_id, COUNT(*) AS order_count FROM \"order\" GROUP BY customer_id;'
-}
+-# OLD: this ran at import time and would crash the app if OpenAI was unreachable or misconfigured
+-embeddings = OpenAIEmbeddings()  # implicit default may be ada-002 on older LangChain
+-vector_db = FAISS.from_documents(few_shot_docs, embeddings)
 
-embeddings = OpenAIEmbeddings()
-
-few_shot_docs = [Document(page_content=question, metadata={'sql_query': few_shots[question]}) for question in few_shots.keys()]
-vector_db = FAISS.from_documents(few_shot_docs, embeddings)
-retriever = vector_db.as_retriever()
-
-tool_description = """
-This tool will help you understand similar examples to adapt them to the user question.
-Input to this tool should be the user question.
-"""
-
-retriever_tool = create_retriever_tool(
-        retriever,
-        name='sql_get_similar_examples',
-        description=tool_description
-    )
-custom_tool_list = [retriever_tool, ]
-
-
-custom_suffix = """
-I should first get the similar examples I know.
-If the examples are enough to construct the query, I can build it.
-Otherwise, I can then look at the tables in the database to see what I can query.
-Then I should query the schema of the most relevant tables
-"""
++# NEW: pick a current model and defer building the index
++EMBEDDING_MODEL = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
++
++def _build_embeddings():
++    # For langchain==0.0.320 the class lives under langchain.embeddings.openai.OpenAIEmbeddings
++    # It accepts a `model` kwarg for the embeddings model.
++    return OpenAIEmbeddings(model=EMBEDDING_MODEL)
++
++def build_few_shot_faiss():
++    """Build FAISS index for few-shot examples lazily."""
++    embeds = _build_embeddings()
++    return FAISS.from_documents(few_shot_docs, embeds)
++
++# Expose a callable instead of a prebuilt object
++def get_few_shot_vector_db():
++    return build_few_shot_faiss()
